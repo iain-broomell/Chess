@@ -24,7 +24,7 @@ private:
     enum Type type;
     bool firstMove = true;
 public:
-    Piece(enum Type type, std::string name, int x, int y) {
+    Piece(enum Type type, const std::string &name, int x, int y) {
         this->type = type;
         this->name = name;
         this->x = x;
@@ -41,7 +41,7 @@ public:
         return y;
     }
     int getType() {
-        return this->type;
+        return type;
     }
     int* getXY() {
         int position[2] = { x, y };
@@ -60,8 +60,8 @@ public:
         int x = getX();
         int y = getY();
 
-        // if piece is a PAWN
-        if (type == PAWN) {
+        switch (type) {
+        case PAWN:
             if (taking && !((x + 1 == destX || x - 1 == destX) && y + 1 == destY)) {
                 return -1;
             }
@@ -70,33 +70,19 @@ public:
             }
 
             setPosition(destX, destY);
-            return 0;
+            break;
+        case CASTLE:
+            break;
+        case KNIGHT:
+            break;
+        case BISHOP:
+            break;
+        case QUEEN:
+            break;
+        case KING:
+            break;
         }
-
-        // if piece is a CASTLE
-        if (type == CASTLE) {
-
-        }
-
-        // if piece is a KNIGHT
-        if (type == KNIGHT) {
-
-        }
-
-        // if piece is a BISHOP
-        if (type == BISHOP) {
-
-        }
-
-        // if piece is a QUEEN
-        if (type == QUEEN) {
-
-        }
-
-        // if piece is a KING
-        if (type == KING) {
-
-        }
+        return 0;
     }
 };
 
