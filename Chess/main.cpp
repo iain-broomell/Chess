@@ -5,6 +5,9 @@ A program which allows a user to play chess.
 */
 
 #include <iostream>
+#include <string>
+#include <vector>
+#include <memory>
 
 const std::string VERSION = "v0.1";
 const enum Type {
@@ -16,31 +19,51 @@ const enum Type {
     KING
 };
 
+const enum Color {
+    WHITE,
+    BLACK
+};
+
 class Piece {
 private:
-    std::string name;
+    char name;
     int x;
     int y;
     enum Type type;
+    enum Color color;
     bool firstMove = true;
 public:
-    Piece(enum Type type, const std::string &name, int x, int y) {
+    Piece(enum Color color, enum Type type, char name, int x, int y) {
+        this->color = color;
         this->type = type;
         this->name = name;
         this->x = x;
         this->y = y;
     }
-    ~Piece() { std::cout << name << " was destroyed" << std::endl; }
-    std::string getName() {
+    ~Piece() {}
+    char getName() const {
         return name;
     }
-    int getX() {
+
+    std::string to_string() {
+        std::string colorString;
+        switch (color) {
+        case WHITE:
+            colorString = "White";
+            break;
+        case BLACK:
+            colorString = "Black";
+        }
+        return std::string(colorString + name + " (" + std::to_string(x) + ", " + std::to_string(y) + ").");
+    }
+
+    int getX() const {
         return x;
     }
-    int getY() {
+    int getY() const {
         return y;
     }
-    int getType() {
+    int getType() const {
         return type;
     }
     int* getXY() {
@@ -52,7 +75,7 @@ public:
         this->y = y;
     }
 
-    bool isFirstMove() {
+    bool isFirstMove() const {
         return firstMove;
     }
 
@@ -65,7 +88,7 @@ public:
             if (taking && !((x + 1 == destX || x - 1 == destX) && y + 1 == destY)) {
                 return -1;
             }
-            else if (!taking && ((isFirstMove() && y + 2 != destY) || (!isFirstMove() && y + 1 != destY))) {
+            else if (!taking && ((isFirstMove() && y + 2 != destY) || y + 1 != destY)) {
                 return -1;
             }
 
@@ -86,12 +109,76 @@ public:
     }
 };
 
+class Board {
+private:
+    void init() {
+        /*
+        Instead of this, have a constant array of piece types, iterate through the array rather
+        than using i as the switch parameter. then, use a single function with a switch statement
+        to populate the pieces vector.
+        */
+        std::vector<std::unique_ptr<Piece>> pieces;
+        pieces.reserve(32);
+        populatePieces(pieces);
+    }
+
+    // Populates vector of pieces. Pass reference to pieces vector as a parameter in function call. 
+    void populatePieces(std::vector<std::unique_ptr<Piece>>& pieces) {
+        // assumes every count in this list is an even number
+        uint16_t countOfType[6] = {
+            16, // pawns
+            4,  // castles
+            4,  // knights
+            4,  // bishops
+            2,  // queens
+            2   // kings
+        };
+
+        // this is so verbose but wtf else am I supposed to do for this procedural stuff (fix maybe?)
+        char nameCharacters[6] = {
+            'p', // pawn
+            'c', // castle
+            'k', // knight
+            'b', // bishop
+            'q', // queen
+            'K'  // king
+        };
+
+        uint8_t startColumn[6] = {
+            0, // pawn
+            0, // castle
+            1, // knight
+            2, // bishop
+            3, // queen
+            4  // king
+        };
+
+        uint8_t columnSteps[6] = {
+            1, // pawn
+            7, // castle
+            5, // knight
+            3, // bishop
+            0, // queen
+            0  // king
+        };
+
+        // bah more than O(n) complexity :(
+        for (uint8_t typeIndex = 0; typeIndex < 6; typeIndex++) {
+            for (uint16_t iter = 0; iter < countOfType[typeIndex]; iter++) {
+                enum Color color = iter < countOfType[typeIndex] / 2 ? WHITE : BLACK;
+                uint8_t whiteRow = typeIndex == 0 ? 1 : 0; // not pretty but not sure how else to do this efficiently
+                uint8_t blackRow = typeIndex == 0 ? 6 : 7;
+                uint8_t row = color == WHITE ? whiteRow : blackRow;
+                uint8_t columnOffset = iter == 0 || iter == countOfType[typeIndex] / 2 ? 0 : columnSteps[typeIndex];
+                pieces.emplace_back(color, typeIndex, nameCharacters[typeIndex], startColumn[typeIndex] + columnOffset, row);
+            }
+        }
+    }
+};
+
 int main()
 {
-    // init board
-    
     std::cout << "Chess (" << VERSION << "), by Iain Broomell." << std::endl;
 
-    Piece pawn = Piece(PAWN, "White Pawn", 0, 0);
     return 0;
 }
