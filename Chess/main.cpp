@@ -54,7 +54,7 @@ public:
         case BLACK:
             colorString = "Black";
         }
-        return std::string(colorString + name + " (" + std::to_string(x) + ", " + std::to_string(y) + ").");
+        return std::string(colorString + " " + name + " (" + std::to_string(x) + ", " + std::to_string(y) + ").");
     }
 
     int getX() const {
@@ -162,23 +162,46 @@ private:
             0  // king
         };
 
+        /*
+        after test, need to fix columning. Columns are not accurately generated. Probably not adding the iteration in the constructor.
+        */
+
         // bah more than O(n) complexity :(
         for (uint8_t typeIndex = 0; typeIndex < 6; typeIndex++) {
             for (uint16_t iter = 0; iter < countOfType[typeIndex]; iter++) {
-                enum Color color = iter < countOfType[typeIndex] / 2 ? WHITE : BLACK;
+                bool isFirstHalf = iter < countOfType[typeIndex] / 2;
+
+                enum Color color = isFirstHalf ? WHITE : BLACK;
+
                 uint8_t whiteRow = typeIndex == 0 ? 1 : 0; // not pretty but not sure how else to do this efficiently
                 uint8_t blackRow = typeIndex == 0 ? 6 : 7;
+
                 uint8_t row = color == WHITE ? whiteRow : blackRow;
-                uint8_t columnOffset = iter == 0 || iter == countOfType[typeIndex] / 2 ? 0 : columnSteps[typeIndex];
-                pieces.emplace_back(color, typeIndex, nameCharacters[typeIndex], startColumn[typeIndex] + columnOffset, row);
+
+                uint8_t columnOffset = (iter == 0 || iter == countOfType[typeIndex] / 2 ? 0 : 
+                    columnSteps[typeIndex] * (isFirstHalf ? iter : iter - countOfType[typeIndex] / 2));
+
+                pieces.emplace_back(std::make_unique<Piece>(
+                    Piece(color, static_cast<Type>(typeIndex), nameCharacters[typeIndex], startColumn[typeIndex] + columnOffset, int(row))));
             }
         }
+        
+        // debug
+        for (int i = 0; i < 32; i++) {
+            std::cout << std::to_string(i) << " " << (*pieces[i]).to_string() << std::endl;
+        }
+    }
+public:
+    Board() {
+        init();
     }
 };
 
 int main()
 {
     std::cout << "Chess (" << VERSION << "), by Iain Broomell." << std::endl;
+
+    Board board = Board();
 
     return 0;
 }
