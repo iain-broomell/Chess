@@ -79,45 +79,57 @@ public:
         return firstMove;
     }
 
-    int move(int destX, int destY, bool taking) {
-        int x = getX();
-        int y = getY();
-
+    // wild boolean logic RAAAAHHHH
+    int move(int destX, int destY, bool taking) const {
         switch (type) {
         case PAWN:
-            if (taking && !((x + 1 == destX || x - 1 == destX) && y + 1 == destY)) {
-                return -1;
+            if ((taking && destY == y + 1 && (destX == x + 1 || destX == x - 1)) ||
+                (!taking && ((destY == y + 1 && destX == x || (firstMove && destY == y + 2 && destX == x))))) {
+                //setPosition(destX, destY);
+                return 0;
             }
-            else if (!taking && ((isFirstMove() && y + 2 != destY) || y + 1 != destY)) {
-                return -1;
-            }
-
-            setPosition(destX, destY);
             break;
         case CASTLE:
+            // TODO: make sure to check if other pieces are in the way board-side
+            if (destX == x || destY == y) {
+                //setPosition(destX, destY);
+                return 0;
+            }
             break;
         case KNIGHT:
+            if (((destY == y + 1 || destY == y - 1) && (destX == x + 2 || destX == x - 2)) ||
+                ((destY == y - 2 || destY == y + 2) && (destX == x + 1 || destX == x - 1))) {
+                //setPosition(destX, destY);
+                return 0;
+            }
             break;
-        case BISHOP:
+        case BISHOP: // works
+            if (abs(destX - x) == abs(destY - y)) {
+                //setPosition(destX, destY);
+                return 0;
+            }
             break;
-        case QUEEN:
+        case QUEEN: // doesn't work
+            // TODO: make sure to check no piece is in the way of move board-side
+            if ((abs(destX - x) == abs(destY - y)) 
+                || (destX == x || destY == y)) {
+                //setPosition(destX, destY);
+                return 0;
+            }
             break;
-        case KING:
-            break;
+        case KING: // diagonal works, straight doesn't
+            if (!(abs(destX - x) == abs(destY - y))) break;
+            if (!(abs(destX - x) <= 1 && abs(destY - y) <= 1)) break;
+            return 0;
         }
-        return 0;
+        return -1;
     }
 };
 
 class Board {
 private:
+    std::vector<std::unique_ptr<Piece>> pieces;
     void init() {
-        /*
-        Instead of this, have a constant array of piece types, iterate through the array rather
-        than using i as the switch parameter. then, use a single function with a switch statement
-        to populate the pieces vector.
-        */
-        std::vector<std::unique_ptr<Piece>> pieces;
         pieces.reserve(32);
         populatePieces(pieces);
     }
@@ -162,10 +174,6 @@ private:
             0  // king
         };
 
-        /*
-        after test, need to fix columning. Columns are not accurately generated. Probably not adding the iteration in the constructor.
-        */
-
         // bah more than O(n) complexity :(
         for (uint8_t typeIndex = 0; typeIndex < 6; typeIndex++) {
             for (uint16_t iter = 0; iter < countOfType[typeIndex]; iter++) {
@@ -185,11 +193,6 @@ private:
                     Piece(color, static_cast<Type>(typeIndex), nameCharacters[typeIndex], startColumn[typeIndex] + columnOffset, int(row))));
             }
         }
-        
-        // debug
-        for (int i = 0; i < 32; i++) {
-            std::cout << std::to_string(i) << " " << (*pieces[i]).to_string() << std::endl;
-        }
     }
 public:
     Board() {
@@ -197,11 +200,36 @@ public:
     }
 };
 
+static bool testDiagonals(Piece piece) {
+    int trueCases[4][2] = {
+        {1, 1},
+        {1, -1},
+        {-1, 1},
+        {-1, 0}
+    };
+
+    int falseCases[4][2] = {
+        {1, 0},
+        {2, 5},
+        {-5, -4},
+        {9, 8}
+    };
+
+    for (int i = 0; i < 4; i++) {
+        if (piece.move(trueCases[i][0], trueCases[i][1], false) != 0) return false;
+    }
+    for (int i = 0; i < 4; i++) {
+        if (piece.move(falseCases[i][0], falseCases[i][1], false) != -1) return false;
+    }
+
+    return true;
+}
+
 int main()
 {
     std::cout << "Chess (" << VERSION << "), by Iain Broomell." << std::endl;
 
-    Board board = Board();
+    std::cout << testDiagonals(Piece(WHITE, KING, 'c', 0, 0)) << std::endl;
 
     return 0;
 }
