@@ -103,24 +103,27 @@ public:
                 return 0;
             }
             break;
-        case BISHOP: // works
+        case BISHOP:
+            std::cout << "moving from " << x << ", " << y << " to " << destX << ", " << destY << std::endl;
+            std::cout << "moving diagonal if abs(destX - x) (" << abs(destX - x) << ") == abs(destY - y) (" << abs(destY - y) << "), which is " << (abs(destX - x) == abs(destY - y) ? "true" : "false") << std::endl;
             if (abs(destX - x) == abs(destY - y)) {
                 //setPosition(destX, destY);
                 return 0;
             }
-            break;
-        case QUEEN: // doesn't work
+            else break;
+        case QUEEN:
             // TODO: make sure to check no piece is in the way of move board-side
+            std::cout << "in movement range if abs(destX - x) (" << abs(destX - x) << ") <= 1 and abs(destY - y) (" << abs(destY - y) << ") <= 1, which is " << ((abs(destX - x) <= 1 && abs(destY - y) <= 1) ? "true" : "false") << std::endl;
             if ((abs(destX - x) == abs(destY - y)) 
                 || (destX == x || destY == y)) {
                 //setPosition(destX, destY);
                 return 0;
             }
-            break;
-        case KING: // diagonal works, straight doesn't
-            if (!(abs(destX - x) == abs(destY - y))) break;
-            if (!(abs(destX - x) <= 1 && abs(destY - y) <= 1)) break;
-            return 0;
+            else break;
+        case KING:
+            if (abs(destX - x) <= 1 && abs(destY - y) <= 1)
+                return 0;
+            else break;
         }
         return -1;
     }
@@ -147,31 +150,15 @@ private:
         };
 
         // this is so verbose but wtf else am I supposed to do for this procedural stuff (fix maybe?)
+        // order: pawn, castle, knight, bishop, queen, king
         char nameCharacters[6] = {
-            'p', // pawn
-            'c', // castle
-            'k', // knight
-            'b', // bishop
-            'q', // queen
-            'K'  // king
+            'p', 'c', 'k', 'b', 'q', 'K'
         };
-
         uint8_t startColumn[6] = {
-            0, // pawn
-            0, // castle
-            1, // knight
-            2, // bishop
-            3, // queen
-            4  // king
+            0, 0, 1, 2, 3, 4  
         };
-
         uint8_t columnSteps[6] = {
-            1, // pawn
-            7, // castle
-            5, // knight
-            3, // bishop
-            0, // queen
-            0  // king
+            1, 7, 5, 3, 0, 0 
         };
 
         // bah more than O(n) complexity :(
@@ -200,36 +187,9 @@ public:
     }
 };
 
-static bool testDiagonals(Piece piece) {
-    int trueCases[4][2] = {
-        {1, 1},
-        {1, -1},
-        {-1, 1},
-        {-1, 0}
-    };
-
-    int falseCases[4][2] = {
-        {1, 0},
-        {2, 5},
-        {-5, -4},
-        {9, 8}
-    };
-
-    for (int i = 0; i < 4; i++) {
-        if (piece.move(trueCases[i][0], trueCases[i][1], false) != 0) return false;
-    }
-    for (int i = 0; i < 4; i++) {
-        if (piece.move(falseCases[i][0], falseCases[i][1], false) != -1) return false;
-    }
-
-    return true;
-}
-
 int main()
 {
     std::cout << "Chess (" << VERSION << "), by Iain Broomell." << std::endl;
-
-    std::cout << testDiagonals(Piece(WHITE, KING, 'c', 0, 0)) << std::endl;
 
     return 0;
 }
