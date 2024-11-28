@@ -14,7 +14,7 @@ A program which allows a user to play chess.
 const std::string VERSION = "v0.1";
 const enum Type {
     PAWN,
-    CASTLE,
+    ROOK,
     KNIGHT,
     BISHOP,
     QUEEN,
@@ -109,7 +109,7 @@ public:
             }
             else break;
 
-        case CASTLE:
+        case ROOK:
             // TODO: make sure to check if other pieces are in the way board-side
             if (destX == x || destY == y) {
                 setPosition(destX, destY);
@@ -153,6 +153,8 @@ public:
     }
 };
 
+/* Uses a vector of pieces because it's smaller than an array, but less performant when doing calculations and stuff.
+Might switch to a more performant version later, or simply representing the entire board within a vector. */
 class Board {
 private:
     std::vector<std::unique_ptr<Piece>> pieces;
@@ -166,7 +168,7 @@ private:
         // assumes every count in this list is an even number
         uint16_t countOfType[6] = {
             16, // pawns
-            4,  // castles
+            4,  // rooks
             4,  // knights
             4,  // bishops
             2,  // queens
@@ -174,12 +176,12 @@ private:
         };
 
         // this is so verbose but wtf else am I supposed to do for this procedural stuff (fix maybe?)
-        // order: pawn, castle, knight, bishop, queen, king
+        // order: pawn, rook, knight, bishop, queen, king
         char nameCharacters[6] = {
-            'p', 'c', 'k', 'b', 'q', 'K'
+            'p', 'r', 'k', 'b', 'Q', 'K'
         };
         uint8_t startColumn[6] = {
-            0, 0, 1, 2, 3, 4  
+            0, 0, 1, 2, 4, 3  
         };
         uint8_t columnSteps[6] = {
             1, 7, 5, 3, 0, 0 
@@ -211,20 +213,31 @@ public:
         init();
     }
 
-    std::vector<std::unique_ptr<Piece>> &getPieces() {
-        return pieces;
+    Piece* getPieceAt(int x, int y) {
+        Piece* piece = nullptr;
+        // there has to be a better more effecient way to look for the correct piece.
+        // O(n) complexity, not bad but worse than it could be. 
+        for (int i = 0; i < pieces.size(); i++) {
+            Piece* ptr = pieces[i].get();
+            if (ptr->getY() == y && ptr->getX() == x)
+                piece = ptr;
+        }
+
+        return piece;
     }
 
     // switch to a cached board functionality later
-    void printBoard() {
+    void printBoard(int selected[2][2] = {}) {
+        clearConsole();
+
         HANDLE hConsole; // for changing output color
         hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
         // change to macros
-        int whiteColor = 7;
-        int greenColor = 2;
-        int redColor = 4;
-        int yellowColor = 6;
+        int whiteColor = 15;
+        int greenColor = 10;
+        int redColor = 12;
+        int yellowColor = 14;
 
         char board[8][8][2] = {};
 
@@ -266,8 +279,14 @@ public:
                     break;
                 }
 
+                if (selected && 
+                    ((row == selected[0][0] && col == selected[0][1]) || (row == selected[1][0] && col == selected[1][1]))) {
+                    textColor = yellowColor;
+                }
                 SetConsoleTextAttribute(hConsole, textColor);
-                std::cout << board[row][col][1] << ' ';
+                std::cout << board[row][col][1];
+                SetConsoleTextAttribute(hConsole, whiteColor);
+                std::cout << ' ';
             }
             std::cout << std::endl;
         }
@@ -282,22 +301,19 @@ public:
         SetConsoleTextAttribute(hConsole, whiteColor);
     }
 
-    void askForInput(int turn = 0) {
+    // A mess of input checks to make sure you're doing the right thing (it sucks). 
+    void inputLoop(int turn = 0, bool selectedPiece = false) {
         std::cout << "Input coordinates of piece (ex: d3) - ";
 
         std::string in;
         std::cin >> in;
-
-        std::cout << "you put in: " << in << std::endl;
 
         bool valid = true;
 
         if (in.length() > 2) {
             std::cout << "Input too long." << std::endl;
             valid = false;
-        }
-
-        if (in.length() < 2) {
+        } if (in.length() < 2) {
             std::cout << "Input too short." << std::endl;
             valid = false;
         }
@@ -308,18 +324,15 @@ public:
         if (!std::isalpha(char1) || (char1 < 'a' || char1 > 'h')) {
             std::cout << "First input character must be alphabetical (a - h). Entered: " << char1 << "." << std::endl;
             valid = false;
-        }
-
-        if (!std::isdigit(char2) || (char2 - '0' < 1 || char2 - '0' > 8)) {
+        } if (!std::isdigit(char2) || (char2 - '0' < 1 || char2 - '0' > 8)) {
             std::cout << "Second input character must be numerical (1 - 8). Entered: " << char2 << "." << std::endl;
             valid = false;
         }
 
         if (!valid) {
-            askForInput(turn);
+            inputLoop(turn);
             return;
         }
-
 
         // map input to correct coordinates
         int row = (char2 - '0') - 1;
@@ -336,40 +349,39 @@ public:
             std::cout << "Something messed up real bad... (input char not found in col chars)." << std::endl;
         }
 
-        std::cout << "You inputed cords: " << col << ", " << row << "." << std::endl;
-
-        Piece* piece = nullptr;
-        // there has to be a better more effecient way to look for the correct piece
-        for (int i = 0; i < pieces.size(); i++) {
-            Piece* ptr = pieces[i].get();
-            int x = ptr->getX();
-            int y = ptr->getY();
-            if (y == row && x == col)
-                piece = ptr;
-        }
+        Piece* piece = getPieceAt(col, row);
 
         valid = true;
 
         if (!piece) {
             std::cout << "There is no piece at " << char1 << char2 << std::endl;
             valid = false;
-        }
-
-        if (piece && piece->getColor() != turn) {
+        } if (piece && piece->getColor() != turn) {
             std::cout << "The piece at " << char1 << char2 << " is not your piece." << std::endl;
             valid = false;
         }
 
         if (!valid) {
-            askForInput(turn);
+            inputLoop(turn);
             return;
         }
 
-        std::cout << "Selected piece: " << piece->to_string() << std::endl;
+        int selected[2][2] = { {7 - row, col}, {7 - row, col} };
+        printBoard(selected);
 
-        askForInput();
+        inputLoop();
     }
 };
+
+static void printColorsAndStuff() {
+    HANDLE hConsole; // for changing output color
+    hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    for (int i = 0; i < 255; i++) {
+        SetConsoleTextAttribute(hConsole, i);
+        std::cout << i << std::endl;
+    }
+}
 
 int main()
 {
@@ -378,7 +390,7 @@ int main()
 
     Board board = Board();
     board.printBoard();
-    board.askForInput();
+    board.inputLoop();
 
     return 0;
 }
