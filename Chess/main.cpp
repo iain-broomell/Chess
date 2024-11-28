@@ -9,6 +9,7 @@ A program which allows a user to play chess.
 #include <vector>
 #include <memory>
 #include <windows.h>
+#include <sstream>
 
 const std::string VERSION = "v0.1";
 const enum Type {
@@ -24,6 +25,17 @@ const enum Color {
     WHITE,
     BLACK
 };
+
+static void clearConsole() {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    COORD topLeft = { 0, 0 };
+    DWORD dwCharsWritten;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+    GetConsoleScreenBufferInfo(hConsole, &csbi);
+    FillConsoleOutputCharacter(hConsole, ' ', csbi.dwSize.X * csbi.dwSize.Y, topLeft, &dwCharsWritten);
+    SetConsoleCursorPosition(hConsole, topLeft);
+}
 
 class Piece {
 private:
@@ -178,10 +190,10 @@ private:
             for (uint16_t iter = 0; iter < countOfType[typeIndex]; iter++) {
                 bool isFirstHalf = iter < countOfType[typeIndex] / 2;
 
-                enum Color color = isFirstHalf ? BLACK : WHITE;
+                enum Color color = isFirstHalf ? WHITE : BLACK;
 
-                uint8_t whiteRow = typeIndex == 0 ? 6 : 7; // not pretty but not sure how else to do this efficiently
-                uint8_t blackRow = typeIndex == 0 ? 1 : 0;
+                uint8_t whiteRow = typeIndex == 0 ? 1 : 0; // not pretty but not sure how else to do this efficiently
+                uint8_t blackRow = typeIndex == 0 ? 6 : 7;
 
                 uint8_t row = color == WHITE ? whiteRow : blackRow;
 
@@ -189,10 +201,11 @@ private:
                     columnSteps[typeIndex] * (isFirstHalf ? iter : iter - countOfType[typeIndex] / 2));
                 //std::cout << "maing piece with x of" << startColumn[typeIndex] + columnOffset << std::endl;
                 pieces.emplace_back(std::make_unique<Piece>(
-                    Piece(color, static_cast<Type>(typeIndex), nameCharacters[typeIndex], startColumn[typeIndex] + columnOffset, int(row))));
+                    color, static_cast<Type>(typeIndex), nameCharacters[typeIndex], startColumn[typeIndex] + columnOffset, int(row)));
             }
         }
     }
+
 public:
     Board() {
         init();
@@ -231,8 +244,8 @@ public:
             int x = piece->getX();
             int y = piece->getY();
 
-            board[y][x][0] = piece->getColor() == WHITE ? 'w' : 'b';
-            board[y][x][1] = piece->getName();
+            board[7 - y][7 - x][0] = piece->getColor() == WHITE ? 'w' : 'b';
+            board[7 - y][7 - x][1] = piece->getName();
         }
 
         // print each board slot
@@ -260,13 +273,101 @@ public:
         }
 
         SetConsoleTextAttribute(hConsole, yellowColor);
-        char letters[8] = { 'a', 'b', 'c', 'd', 'e', 'f', 'h', 'i' };
+        char letters[8] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' };
         std::cout << "  ";
         for (int i = 0; i < 8; i++) {
             std::cout << letters[i] << ' ';
         }
         std::cout << std::endl;
         SetConsoleTextAttribute(hConsole, whiteColor);
+    }
+
+    void askForInput(int turn = 0) {
+        std::cout << "Input coordinates of piece (ex: d3) - ";
+
+        std::string in;
+        std::cin >> in;
+
+        std::cout << "you put in: " << in << std::endl;
+
+        bool valid = true;
+
+        if (in.length() > 2) {
+            std::cout << "Input too long." << std::endl;
+            valid = false;
+        }
+
+        if (in.length() < 2) {
+            std::cout << "Input too short." << std::endl;
+            valid = false;
+        }
+
+        char char1 = in[0];
+        char char2 = in[1];
+
+        if (!std::isalpha(char1) || (char1 < 'a' || char1 > 'h')) {
+            std::cout << "First input character must be alphabetical (a - h). Entered: " << char1 << "." << std::endl;
+            valid = false;
+        }
+
+        if (!std::isdigit(char2) || (char2 - '0' < 1 || char2 - '0' > 8)) {
+            std::cout << "Second input character must be numerical (1 - 8). Entered: " << char2 << "." << std::endl;
+            valid = false;
+        }
+
+        if (!valid) {
+            askForInput(turn);
+            return;
+        }
+
+
+        // map input to correct coordinates
+        int row = (char2 - '0') - 1;
+
+        char columnChars[8] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' };
+        int col = -1;
+
+        for (int i = 0; i < 8; i++) {
+            if (char1 == columnChars[i])
+                col = i;
+        }
+
+        if (col < 0) {
+            std::cout << "Something messed up real bad... (input char not found in col chars)." << std::endl;
+        }
+
+        std::cout << "You inputed cords: " << col << ", " << row << "." << std::endl;
+
+        Piece* piece = nullptr;
+        // there has to be a better more effecient way to look for the correct piece
+        for (int i = 0; i < pieces.size(); i++) {
+            Piece* ptr = pieces[i].get();
+            int x = ptr->getX();
+            int y = ptr->getY();
+            if (y == row && x == col)
+                piece = ptr;
+        }
+
+        valid = true;
+
+        if (!piece) {
+            std::cout << "There is no piece at " << char1 << char2 << std::endl;
+            valid = false;
+        }
+
+        if (piece && piece->getColor() != turn) {
+            std::cout << "The piece at " << char1 << char2 << " is not your piece." << std::endl;
+            valid = false;
+        }
+
+        if (!valid) {
+            askForInput(turn);
+            return;
+        }
+
+        std::cout << "Selected piece: " << piece->to_string() << std::endl;
+
+        askForInput();
     }
 };
 
@@ -277,6 +378,7 @@ int main()
 
     Board board = Board();
     board.printBoard();
+    board.askForInput();
 
     return 0;
 }
