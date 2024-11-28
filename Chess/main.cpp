@@ -8,6 +8,7 @@ A program which allows a user to play chess.
 #include <string>
 #include <vector>
 #include <memory>
+#include <windows.h>
 
 const std::string VERSION = "v0.1";
 const enum Type {
@@ -32,6 +33,7 @@ private:
     enum Type type;
     enum Color color;
     bool firstMove = true;
+
 public:
     Piece(enum Color color, enum Type type, char name, int x, int y) {
         this->color = color;
@@ -41,11 +43,12 @@ public:
         this->y = y;
     }
     ~Piece() {}
+
     char getName() const {
         return name;
     }
 
-    std::string to_string() {
+    std::string to_string() const {
         std::string colorString;
         switch (color) {
         case WHITE:
@@ -57,7 +60,11 @@ public:
         return std::string(colorString + " " + name + " (" + std::to_string(x) + ", " + std::to_string(y) + ").");
     }
 
+    enum Color getColor() {
+        return color;
+    }
     int getX() const {
+        //std::cout << "x in piece: " << x << std::endl;
         return x;
     }
     int getY() const {
@@ -80,49 +87,54 @@ public:
     }
 
     // wild boolean logic RAAAAHHHH
-    int move(int destX, int destY, bool taking) const {
+    int move(int destX, int destY, bool taking) {
         switch (type) {
         case PAWN:
             if ((taking && destY == y + 1 && (destX == x + 1 || destX == x - 1)) ||
                 (!taking && ((destY == y + 1 && destX == x || (firstMove && destY == y + 2 && destX == x))))) {
-                //setPosition(destX, destY);
+                setPosition(destX, destY);
                 return 0;
             }
-            break;
+            else break;
+
         case CASTLE:
             // TODO: make sure to check if other pieces are in the way board-side
             if (destX == x || destY == y) {
-                //setPosition(destX, destY);
+                setPosition(destX, destY);
                 return 0;
             }
-            break;
+            else break;
+
         case KNIGHT:
             if (((destY == y + 1 || destY == y - 1) && (destX == x + 2 || destX == x - 2)) ||
                 ((destY == y - 2 || destY == y + 2) && (destX == x + 1 || destX == x - 1))) {
-                //setPosition(destX, destY);
-                return 0;
-            }
-            break;
-        case BISHOP:
-            std::cout << "moving from " << x << ", " << y << " to " << destX << ", " << destY << std::endl;
-            std::cout << "moving diagonal if abs(destX - x) (" << abs(destX - x) << ") == abs(destY - y) (" << abs(destY - y) << "), which is " << (abs(destX - x) == abs(destY - y) ? "true" : "false") << std::endl;
-            if (abs(destX - x) == abs(destY - y)) {
-                //setPosition(destX, destY);
+                setPosition(destX, destY);
                 return 0;
             }
             else break;
+
+        case BISHOP:
+            // TODO: make sure to check if other pieces are in the way board-side
+            if (abs(destX - x) == abs(destY - y)) {
+                setPosition(destX, destY);
+                return 0;
+            }
+            else break;
+
         case QUEEN:
             // TODO: make sure to check no piece is in the way of move board-side
-            std::cout << "in movement range if abs(destX - x) (" << abs(destX - x) << ") <= 1 and abs(destY - y) (" << abs(destY - y) << ") <= 1, which is " << ((abs(destX - x) <= 1 && abs(destY - y) <= 1) ? "true" : "false") << std::endl;
             if ((abs(destX - x) == abs(destY - y)) 
                 || (destX == x || destY == y)) {
-                //setPosition(destX, destY);
+                setPosition(destX, destY);
                 return 0;
             }
             else break;
+
         case KING:
-            if (abs(destX - x) <= 1 && abs(destY - y) <= 1)
+            if (abs(destX - x) <= 1 && abs(destY - y) <= 1) {
+                setPosition(destX, destY);
                 return 0;
+            }
             else break;
         }
         return -1;
@@ -166,16 +178,16 @@ private:
             for (uint16_t iter = 0; iter < countOfType[typeIndex]; iter++) {
                 bool isFirstHalf = iter < countOfType[typeIndex] / 2;
 
-                enum Color color = isFirstHalf ? WHITE : BLACK;
+                enum Color color = isFirstHalf ? BLACK : WHITE;
 
-                uint8_t whiteRow = typeIndex == 0 ? 1 : 0; // not pretty but not sure how else to do this efficiently
-                uint8_t blackRow = typeIndex == 0 ? 6 : 7;
+                uint8_t whiteRow = typeIndex == 0 ? 6 : 7; // not pretty but not sure how else to do this efficiently
+                uint8_t blackRow = typeIndex == 0 ? 1 : 0;
 
                 uint8_t row = color == WHITE ? whiteRow : blackRow;
 
                 uint8_t columnOffset = (iter == 0 || iter == countOfType[typeIndex] / 2 ? 0 : 
                     columnSteps[typeIndex] * (isFirstHalf ? iter : iter - countOfType[typeIndex] / 2));
-
+                //std::cout << "maing piece with x of" << startColumn[typeIndex] + columnOffset << std::endl;
                 pieces.emplace_back(std::make_unique<Piece>(
                     Piece(color, static_cast<Type>(typeIndex), nameCharacters[typeIndex], startColumn[typeIndex] + columnOffset, int(row))));
             }
@@ -185,11 +197,86 @@ public:
     Board() {
         init();
     }
+
+    std::vector<std::unique_ptr<Piece>> &getPieces() {
+        return pieces;
+    }
+
+    // switch to a cached board functionality later
+    void printBoard() {
+        HANDLE hConsole; // for changing output color
+        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+        // change to macros
+        int whiteColor = 7;
+        int greenColor = 2;
+        int redColor = 4;
+        int yellowColor = 6;
+
+        char board[8][8][2] = {};
+
+        // loop through board, populate with placeholders
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                board[row][col][0] = '.';
+                board[row][col][1] = '.';
+            }
+        }
+
+        // loop through pieces, put name char and color char at coords
+        for (int i = 0; i < pieces.size(); i++) {
+            Piece* piece = pieces[i].get();
+
+            // doesn't work because all returning the same value. Very confusing. 
+            int x = piece->getX();
+            int y = piece->getY();
+
+            board[y][x][0] = piece->getColor() == WHITE ? 'w' : 'b';
+            board[y][x][1] = piece->getName();
+        }
+
+        // print each board slot
+        for (int row = 0; row < 8; row++) {
+            SetConsoleTextAttribute(hConsole, yellowColor);
+            std::cout << (8 - row) << ' ';
+            for (int col = 0; col < 8; col++) {
+                int textColor;
+                switch (board[row][col][0]) {
+                case 'b':
+                    textColor = redColor;
+                    break;
+                case 'w':
+                    textColor = greenColor;
+                    break;
+                default:
+                    textColor = whiteColor;
+                    break;
+                }
+
+                SetConsoleTextAttribute(hConsole, textColor);
+                std::cout << board[row][col][1] << ' ';
+            }
+            std::cout << std::endl;
+        }
+
+        SetConsoleTextAttribute(hConsole, yellowColor);
+        char letters[8] = { 'a', 'b', 'c', 'd', 'e', 'f', 'h', 'i' };
+        std::cout << "  ";
+        for (int i = 0; i < 8; i++) {
+            std::cout << letters[i] << ' ';
+        }
+        std::cout << std::endl;
+        SetConsoleTextAttribute(hConsole, whiteColor);
+    }
 };
 
 int main()
 {
     std::cout << "Chess (" << VERSION << "), by Iain Broomell." << std::endl;
+    std::cout << "btw... green goes first." << std::endl;
+
+    Board board = Board();
+    board.printBoard();
 
     return 0;
 }
