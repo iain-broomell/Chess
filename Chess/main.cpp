@@ -239,10 +239,20 @@ private:
         return in;
     }
 
-    bool diagonalInterceptCheck(int originX, int originY, int targetX, int targetY, int dirX, int dirY) {
-        // do some weird shit.
+    // Checks if the suggested diagonal move is possible (true) or if the move is intercepted by another piece (false).
+    bool diagonalInterceptCheck(int originX, int originY, int targetX, int targetY) {
+        int checkTarget = targetX - originX; // assuming x and y differences are the same, else not a valid diagonal move. 
+        // weird ass for loop
+        for (int checkMod = (checkTarget > 0 ? 1 : -1); checkMod != checkTarget; checkMod += (checkTarget > 0 ? 1 : -1)) {
+            std::cout << "Checking if there is a piece at " << originX + checkMod << " " << originY + checkMod << std::endl;
+            if (getPieceAt(originX + checkMod, originY + checkMod))
+                return false;
+            std::cout << "No piece there." << std::endl;
+        }
+        return true;
     }
 
+    // Checks if the suggested straight move is possible (true) or if the move is intercepted by another piece (false). 
     bool straightInterceptCheck(int originX, int originY, int targetX, int targetY, int dirX, int dirY) {
         if (dirX != 0) {
             for (int checkX = originX + (dirX > 0 ? 1 : -1); checkX != targetX; checkX += (dirX > 0 ? 1 : -1)) {
@@ -265,12 +275,14 @@ private:
 public:
     Board() {
         init();
+        pieces.emplace_back(std::make_unique<Piece>(WHITE, BISHOP, 'b', 1, 2));
     }
 
     Piece* getPieceAt(int x, int y) {
         Piece* piece = nullptr;
         // there has to be a better more effecient way to look for the correct piece.
         // O(n) complexity, not bad but worse than it could be. 
+        std::cout << pieces.size() << std::endl;
         for (int i = 0; i < pieces.size(); i++) {
             Piece* ptr = pieces[i].get();
             if (ptr->getY() == y && ptr->getX() == x)
@@ -311,8 +323,8 @@ public:
             int x = piece->getX();
             int y = piece->getY();
 
-            board[7 - y][7 - x][0] = piece->getColor() == WHITE ? 'w' : 'b';
-            board[7 - y][7 - x][1] = piece->getName();
+            board[7 - y][x][0] = piece->getColor() == WHITE ? 'w' : 'b';
+            board[7 - y][x][1] = piece->getName();
         }
 
         // print each board slot
@@ -443,14 +455,14 @@ public:
                 pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
                 break;
             case BISHOP:
-                // check by stepping x and y by same increments
+                pieceBetween = !diagonalInterceptCheck(x, y, col, row);
                 break;
             case QUEEN:
-                // check if move is diagonal or straight, same check and bishop and rook respectively
+                // check if move is diagonal or straight, same check as bishop and rook respectively
                 if ((dirX != 0 && dirY == 0) || (dirX == 0 && dirY != 0))
                     pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
                 else // check diagonal
-                    break;
+                    pieceBetween = !diagonalInterceptCheck(x, y, col, row);
                 break;
             }
 
@@ -462,7 +474,7 @@ public:
             selected[1][0] = 7 - row;
             selected[1][1] = col;
 
-            printBoard(selected);
+            //printBoard(selected);
         }
     }
 };
