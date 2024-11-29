@@ -104,7 +104,6 @@ public:
         case PAWN:
             if ((taking && destY == y + 1 && (destX == x + 1 || destX == x - 1)) ||
                 (!taking && ((destY == y + 1 && destX == x || (firstMove && destY == y + 2 && destX == x))))) {
-                setPosition(destX, destY);
                 return 0;
             }
             else break;
@@ -112,7 +111,6 @@ public:
         case ROOK:
             // TODO: make sure to check if other pieces are in the way board-side
             if (destX == x || destY == y) {
-                setPosition(destX, destY);
                 return 0;
             }
             else break;
@@ -120,7 +118,6 @@ public:
         case KNIGHT:
             if (((destY == y + 1 || destY == y - 1) && (destX == x + 2 || destX == x - 2)) ||
                 ((destY == y - 2 || destY == y + 2) && (destX == x + 1 || destX == x - 1))) {
-                setPosition(destX, destY);
                 return 0;
             }
             else break;
@@ -128,23 +125,20 @@ public:
         case BISHOP:
             // TODO: make sure to check if other pieces are in the way board-side
             if (abs(destX - x) == abs(destY - y)) {
-                setPosition(destX, destY);
                 return 0;
             }
             else break;
 
         case QUEEN:
-            // TODO: make sure to check no piece is in the way of move board-side
+            // TODO: make sure to check Q no piece is in the way of move board-side
             if ((abs(destX - x) == abs(destY - y)) 
                 || (destX == x || destY == y)) {
-                setPosition(destX, destY);
                 return 0;
             }
             else break;
 
         case KING:
             if (abs(destX - x) <= 1 && abs(destY - y) <= 1) {
-                setPosition(destX, destY);
                 return 0;
             }
             else break;
@@ -153,7 +147,7 @@ public:
     }
 };
 
-/* Uses a vector of pieces because it's smaller than an array, but less performant when doing calculations and stuff.
+/* Uses a vector of pieces because it's easier than an array, but less performant when doing calculations and stuff.
 Might switch to a more performant version later, or simply representing the entire board within a vector. */
 class Board {
 private:
@@ -207,7 +201,67 @@ private:
             }
         }
     }
+    
+    bool isInputValid(std::string in) {
+        bool valid = true;
 
+        if (in.length() > 2) {
+            std::cout << "Input too long." << std::endl;
+            valid = false;
+        } if (in.length() < 2) {
+            std::cout << "Input too short." << std::endl;
+            valid = false;
+        }
+
+        char char1 = in[0];
+        char char2 = in[1];
+
+        if (!std::isalpha(char1) || (char1 < 'a' || char1 > 'h')) {
+            std::cout << "First input character must be alphabetical (a - h). Entered: " << char1 << "." << std::endl;
+            valid = false;
+        } if (!std::isdigit(char2) || (char2 - '0' < 1 || char2 - '0' > 8)) {
+            std::cout << "Second input character must be numerical (1 - 8). Entered: " << char2 << "." << std::endl;
+            valid = false;
+        }
+
+        return valid;
+    }
+
+    std::string getInput(std::string message) {
+        std::cout << message;
+
+        std::string in;
+        std::cin >> in;
+
+        if (!isInputValid(in))
+            in = getInput(message);
+
+        return in;
+    }
+
+    bool diagonalInterceptCheck(int originX, int originY, int targetX, int targetY, int dirX, int dirY) {
+        // do some weird shit.
+    }
+
+    bool straightInterceptCheck(int originX, int originY, int targetX, int targetY, int dirX, int dirY) {
+        if (dirX != 0) {
+            for (int checkX = originX + (dirX > 0 ? 1 : -1); checkX != targetX; checkX += (dirX > 0 ? 1 : -1)) {
+                std::cout << "Checking if there is a piece at " << targetX << " " << targetY << std::endl;
+                if (getPieceAt(checkX, targetY))
+                    return false;
+                std::cout << "No piece there." << std::endl;
+            }
+        }
+        else if (dirY != 0) {
+            for (int checkY = originY + (dirY > 0 ? 1 : -1); checkY != targetY; checkY += (dirY > 0 ? 1 : -1)) {
+                std::cout << "Checking if there is a piece at " << targetX << " " << checkY << std::endl;
+                if (getPieceAt(targetX, checkY))
+                    return false;
+                std::cout << "No piece there." << std::endl;
+            }
+        }
+        return true;
+    }
 public:
     Board() {
         init();
@@ -281,7 +335,7 @@ public:
 
                 if (selected && 
                     ((row == selected[0][0] && col == selected[0][1]) || (row == selected[1][0] && col == selected[1][1]))) {
-                    textColor = yellowColor;
+                    textColor += 8 * 16;
                 }
                 SetConsoleTextAttribute(hConsole, textColor);
                 std::cout << board[row][col][1];
@@ -302,37 +356,11 @@ public:
     }
 
     // A mess of input checks to make sure you're doing the right thing (it sucks). 
-    void inputLoop(int turn = 0, bool selectedPiece = false) {
-        std::cout << "Input coordinates of piece (ex: d3) - ";
-
-        std::string in;
-        std::cin >> in;
-
-        bool valid = true;
-
-        if (in.length() > 2) {
-            std::cout << "Input too long." << std::endl;
-            valid = false;
-        } if (in.length() < 2) {
-            std::cout << "Input too short." << std::endl;
-            valid = false;
-        }
+    void inputLoop(int turn = 0) {
+        std::string in = getInput(std::string("Input coordinates of piece (ex: d3) - "));
 
         char char1 = in[0];
         char char2 = in[1];
-
-        if (!std::isalpha(char1) || (char1 < 'a' || char1 > 'h')) {
-            std::cout << "First input character must be alphabetical (a - h). Entered: " << char1 << "." << std::endl;
-            valid = false;
-        } if (!std::isdigit(char2) || (char2 - '0' < 1 || char2 - '0' > 8)) {
-            std::cout << "Second input character must be numerical (1 - 8). Entered: " << char2 << "." << std::endl;
-            valid = false;
-        }
-
-        if (!valid) {
-            inputLoop(turn);
-            return;
-        }
 
         // map input to correct coordinates
         int row = (char2 - '0') - 1;
@@ -345,13 +373,9 @@ public:
                 col = i;
         }
 
-        if (col < 0) {
-            std::cout << "Something messed up real bad... (input char not found in col chars)." << std::endl;
-        }
-
         Piece* piece = getPieceAt(col, row);
 
-        valid = true;
+        bool valid = true;
 
         if (!piece) {
             std::cout << "There is no piece at " << char1 << char2 << std::endl;
@@ -366,10 +390,80 @@ public:
             return;
         }
 
-        int selected[2][2] = { {7 - row, col}, {7 - row, col} };
-        printBoard(selected);
+        bool destinationValid = false;
 
-        inputLoop();
+        int selected[2][2] = { {7 - piece->getY(), piece->getX()}, {7 - piece->getY(), piece->getX()} };
+
+        bool firstIter = true;
+        while (!destinationValid) {
+            printBoard(selected);
+
+            if (!firstIter)
+                std::cout << "Move invalid for piece " << piece->getName() << "." << std::endl;
+            
+            firstIter = false;
+
+            in = getInput(std::string("Input coordinates of destination (ex: d5) - "));
+
+            char1 = in[0];
+            char2 = in[1];
+
+            row = (char2 - '0') - 1;
+            col = -1;
+
+            for (int i = 0; i < 8; i++) {
+                if (char1 == columnChars[i])
+                    col = i;
+            }
+
+            bool taking = false;
+
+            Piece* destPiece = getPieceAt(col, row);
+
+            if (destPiece && destPiece->getColor() != turn)
+                taking = true;
+            else if (destPiece) {
+                std::cout << "there's a piece there!" << std::endl;
+                return;
+            }
+
+            if (piece->move(col, row, taking) != 0)
+                continue;
+
+            // check if pieces are in the way of the two spots
+            enum Type pieceType = static_cast<Type>(piece->getType());
+
+            int x = piece->getX(), y = piece->getY();
+            int dirX = col - x, dirY = row - y;
+
+            bool pieceBetween = false;
+
+            switch (pieceType) {
+            case ROOK:
+                pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
+                break;
+            case BISHOP:
+                // check by stepping x and y by same increments
+                break;
+            case QUEEN:
+                // check if move is diagonal or straight, same check and bishop and rook respectively
+                if ((dirX != 0 && dirY == 0) || (dirX == 0 && dirY != 0))
+                    pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
+                else // check diagonal
+                    break;
+                break;
+            }
+
+            destinationValid = !pieceBetween;
+
+            if (!destinationValid)
+                continue;
+
+            selected[1][0] = 7 - row;
+            selected[1][1] = col;
+
+            printBoard(selected);
+        }
     }
 };
 
