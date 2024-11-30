@@ -175,7 +175,7 @@ private:
             'p', 'r', 'k', 'b', 'Q', 'K'
         };
         uint8_t startColumn[6] = {
-            0, 0, 1, 2, 4, 3  
+            0, 0, 1, 2, 3, 4  
         };
         uint8_t columnSteps[6] = {
             1, 7, 5, 3, 0, 0 
@@ -239,15 +239,40 @@ private:
         return in;
     }
 
+    bool getYesNo(std::string message) {
+        std::cout << message;
+
+        std::string in;
+        std::cin >> in;
+
+        if (in.length() != 1) {
+            std::cout << "Input must be single character y or n." << std::endl;
+            in = getYesNo(message);
+        }
+
+        char yesOrNo = std::tolower(in[0]);
+        switch (yesOrNo) {
+        case 'y':
+            return true;
+        case 'n':
+            return false;
+        default:
+            std::cout << "Input must be either y or n." << std::endl;
+            return getYesNo(message);
+        }
+    }
+
     // Checks if the suggested diagonal move is possible (true) or if the move is intercepted by another piece (false).
     bool diagonalInterceptCheck(int originX, int originY, int targetX, int targetY) {
-        int checkTarget = targetX - originX; // assuming x and y differences are the same, else not a valid diagonal move. 
+        int checkTargetX = targetX - originX, checkTargetY = targetY - originY;
+        int stepX = checkTargetX > 0 ? 1 : -1, stepY = checkTargetY > 0 ? 1 : -1;
         // weird ass for loop
-        for (int checkMod = (checkTarget > 0 ? 1 : -1); checkMod != checkTarget; checkMod += (checkTarget > 0 ? 1 : -1)) {
-            std::cout << "Checking if there is a piece at " << originX + checkMod << " " << originY + checkMod << std::endl;
-            if (getPieceAt(originX + checkMod, originY + checkMod))
+        for (int modX = stepX, modY = stepY; modX != checkTargetX;) {
+            std::cout << "Checking if there is a piece at " << originX + modX << " " << originY + modY << std::endl;
+            if (getPieceAt(originX + modX, originY + modY))
                 return false;
             std::cout << "No piece there." << std::endl;
+            modX += stepX, modY += stepY;
         }
         return true;
     }
@@ -282,7 +307,6 @@ public:
         Piece* piece = nullptr;
         // there has to be a better more effecient way to look for the correct piece.
         // O(n) complexity, not bad but worse than it could be. 
-        std::cout << pieces.size() << std::endl;
         for (int i = 0; i < pieces.size(); i++) {
             Piece* ptr = pieces[i].get();
             if (ptr->getY() == y && ptr->getX() == x)
@@ -474,7 +498,17 @@ public:
             selected[1][0] = 7 - row;
             selected[1][1] = col;
 
-            //printBoard(selected);
+            printBoard(selected);
+
+            bool moveConfirmed = getYesNo("Confirm move? (y/n) - ");
+
+            if (moveConfirmed) {
+                piece->setPosition(col, row);
+                // take other piece if there is a piece in the spot. 
+            }
+            else {
+                // do else shit. 
+            }
         }
     }
 };
