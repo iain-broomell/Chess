@@ -54,7 +54,6 @@ public:
         this->x = x;
         this->y = y;
     }
-    ~Piece() {}
 
     char getName() const {
         return name;
@@ -144,6 +143,17 @@ public:
             else break;
         }
         return -1;
+    }
+};
+
+class Player {
+private:
+    std::string name;
+    enum Color color;
+public:
+    Player(const std::string& rName, enum Color iColor) {
+        name = rName;
+        color = iColor;
     }
 };
 
@@ -297,15 +307,38 @@ private:
         }
         return true;
     }
+
+    void takePiece(Piece* piece, int turn) {
+        for (int index = 0; index < pieces.size(); index++) {
+            if (pieces.at(index).get() == piece) {
+                pieces.erase(pieces.begin() + index);
+                // do some other stuff like keeping track of who has what piece
+            }
+        }
+    }
+
+    std::string convertCharToLongName(char _name) {
+        char charNames[6] = { 'p', 'r', 'k', 'b', 'q', 'K' };
+        std::string longNames[6] = { "Pawn", "Rook", "Knight", "Bishop", "Queen", "King" };
+
+        // if I organized them alphabetically I could do a binary search but I can't be bothered
+        for (int i = 0; i < 6; i++) {
+            if (_name == charNames[i])
+                return longNames[i];
+        }
+
+        return "NOTFOUND";
+    }
 public:
     Board() {
         init();
-        pieces.emplace_back(std::make_unique<Piece>(WHITE, BISHOP, 'b', 1, 2));
     }
 
     Piece* getPieceAt(int x, int y) {
         Piece* piece = nullptr;
         // there has to be a better more effecient way to look for the correct piece.
+        // maybe I could do a binary search if the vector size was guarenteed constant
+        // the search would be based on the type of the piece (pawns are always below 16, etc.)
         // O(n) complexity, not bad but worse than it could be. 
         for (int i = 0; i < pieces.size(); i++) {
             Piece* ptr = pieces[i].get();
@@ -316,6 +349,7 @@ public:
         return piece;
     }
 
+    // TODO: add a way to print the board flipped on y axis
     // switch to a cached board functionality later
     void printBoard(int selected[2][2] = {}) {
         clearConsole();
@@ -392,7 +426,7 @@ public:
     }
 
     // A mess of input checks to make sure you're doing the right thing (it sucks). 
-    void inputLoop(int turn = 0) {
+    void inputLoop(int turn) {
         std::string in = getInput(std::string("Input coordinates of piece (ex: d3) - "));
 
         char char1 = in[0];
@@ -404,6 +438,7 @@ public:
         char columnChars[8] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' };
         int col = -1;
 
+        // converts alpha char to index
         for (int i = 0; i < 8; i++) {
             if (char1 == columnChars[i])
                 col = i;
@@ -454,19 +489,18 @@ public:
 
             bool taking = false;
 
+            // check if there is a piece at the destination and if it is the user's piece or not
             Piece* destPiece = getPieceAt(col, row);
-
             if (destPiece && destPiece->getColor() != turn)
                 taking = true;
             else if (destPiece) {
-                std::cout << "there's a piece there!" << std::endl;
-                return;
+                continue;
             }
 
+            // repeat destination loop if the move is invalid
             if (piece->move(col, row, taking) != 0)
                 continue;
 
-            // check if pieces are in the way of the two spots
             enum Type pieceType = static_cast<Type>(piece->getType());
 
             int x = piece->getX(), y = piece->getY();
@@ -474,6 +508,7 @@ public:
 
             bool pieceBetween = false;
 
+            // check if the intended move is impossible because of a piece intercepting the move
             switch (pieceType) {
             case ROOK:
                 pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
@@ -492,22 +527,28 @@ public:
 
             destinationValid = !pieceBetween;
 
+            // repeat destination loop if invalid destination
             if (!destinationValid)
                 continue;
 
+            // select the destination spot
             selected[1][0] = 7 - row;
             selected[1][1] = col;
 
             printBoard(selected);
 
+            // get user input if they want to actually move there or not.
             bool moveConfirmed = getYesNo("Confirm move? (y/n) - ");
 
             if (moveConfirmed) {
+                // move the piece and take the other cause it sucks now
                 piece->setPosition(col, row);
-                // take other piece if there is a piece in the spot. 
+                if (destPiece)
+                    takePiece(destPiece, turn);
             }
             else {
-                // do else shit. 
+                // try again cause they couldn't make up their mind
+                inputLoop(turn);
             }
         }
     }
@@ -529,8 +570,15 @@ int main()
     std::cout << "btw... green goes first." << std::endl;
 
     Board board = Board();
-    board.printBoard();
-    board.inputLoop();
+    
+    enum Color turn = WHITE;
+    bool gameContinue = true;
+
+    while (gameContinue) {
+        board.printBoard();
+        board.inputLoop(turn);
+        // turn = turn == WHITE ? BLACK : WHITE;
+    }
 
     return 0;
 }
