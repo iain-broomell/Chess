@@ -98,11 +98,11 @@ public:
     }
 
     // wild boolean logic RAAAAHHHH
-    int move(int destX, int destY, bool taking) {
+    int move(int destX, int destY, bool taking) const {
         switch (type) {
         case PAWN:
-            if ((taking && destY == y + 1 && (destX == x + 1 || destX == x - 1)) ||
-                (!taking && ((destY == y + 1 && destX == x || (firstMove && destY == y + 2 && destX == x))))) {
+            if ((taking && abs(destY - y) == 1 && (destX == x + 1 || destX == x - 1)) ||
+                (!taking && ((abs(destY - y) == 1 && destX == x || (firstMove && abs(destY - y) == 2 && destX == x))))) {
                 return 0;
             }
             else break;
@@ -150,15 +150,28 @@ class Player {
 private:
     std::string name;
     enum Color color;
+    std::vector<std::unique_ptr<Piece>> capturedPieces;
+    int piecesTaken = 0;
 public:
     Player(const std::string& rName, enum Color iColor) {
         name = rName;
         color = iColor;
+        capturedPieces.reserve(15);
+    }
+    std::string getName() const {
+        return name;
+    }
+    enum Color getColor() {
+        return color;
+    }
+    void addTakenPiece(Piece* pPiece) {
+        capturedPieces.push_back(std::make_unique<Piece>(*pPiece));
     }
 };
 
 /* Uses a vector of pieces because it's easier than an array, but less performant when doing calculations and stuff.
 Might switch to a more performant version later, or simply representing the entire board within a vector. */
+// Big Ass Class
 class Board {
 private:
     std::vector<std::unique_ptr<Piece>> pieces;
@@ -214,6 +227,9 @@ private:
     
     bool isInputValid(std::string in) {
         bool valid = true;
+
+        if (in.length() > 0 && std::isalpha(in[0]) && std::tolower(in[0]) == 'q')
+            return true;
 
         if (in.length() > 2) {
             std::cout << "Input too long." << std::endl;
@@ -308,11 +324,11 @@ private:
         return true;
     }
 
-    void takePiece(Piece* piece, int turn) {
+    void takePiece(Piece* pPiece, Player *pPlayer) {
         for (int index = 0; index < pieces.size(); index++) {
-            if (pieces.at(index).get() == piece) {
+            if (pieces.at(index).get() == pPiece) {
                 pieces.erase(pieces.begin() + index);
-                // do some other stuff like keeping track of who has what piece
+                pPlayer->addTakenPiece(pPiece);
             }
         }
     }
@@ -328,6 +344,34 @@ private:
         }
 
         return "NOTFOUND";
+    }
+
+    bool checkMoveIntercepted(Piece *pPiece, int col, int row) {
+        enum Type pieceType = static_cast<Type>(pPiece->getType());
+
+        int x = pPiece->getX(), y = pPiece->getY();
+        int dirX = col - x, dirY = row - y;
+
+        bool pieceBetween = false;
+
+        // check if the intended move is impossible because of a piece intercepting the move
+        switch (pieceType) {
+        case ROOK:
+            pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
+            break;
+        case BISHOP:
+            pieceBetween = !diagonalInterceptCheck(x, y, col, row);
+            break;
+        case QUEEN:
+            // check if move is diagonal or straight, same check as bishop and rook respectively
+            if ((dirX != 0 && dirY == 0) || (dirX == 0 && dirY != 0))
+                pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
+            else // check diagonal
+                pieceBetween = !diagonalInterceptCheck(x, y, col, row);
+            break;
+        }
+
+        return pieceBetween;
     }
 public:
     Board() {
@@ -351,7 +395,7 @@ public:
 
     // TODO: add a way to print the board flipped on y axis
     // switch to a cached board functionality later
-    void printBoard(int selected[2][2] = {}) {
+    void printBoard(int selected[2][2], Player *pPlayer) {
         clearConsole();
 
         HANDLE hConsole; // for changing output color
@@ -385,8 +429,9 @@ public:
             board[7 - y][x][1] = piece->getName();
         }
 
+        enum Color turn = pPlayer->getColor();
         // print each board slot
-        for (int row = 0; row < 8; row++) {
+        for (int row = turn == WHITE ? 0 : 7; turn == WHITE ? row < 8 : row >= 0; row += turn == WHITE ? 1 : -1) {
             SetConsoleTextAttribute(hConsole, yellowColor);
             std::cout << (8 - row) << ' ';
             for (int col = 0; col < 8; col++) {
@@ -426,129 +471,123 @@ public:
     }
 
     // A mess of input checks to make sure you're doing the right thing (it sucks). 
-    void inputLoop(int turn) {
-        std::string in = getInput(std::string("Input coordinates of piece (ex: d3) - "));
+    // TODO: encapsulate everything into another loop to prevent possible stack overflow
+    void inputLoop(Player *pPlayer) {
+        while (true) {
+            enum Color turn = pPlayer->getColor();
+            std::cout << "Player " << pPlayer->getName() << "'s turn..." << std::endl;
+            std::string in = getInput(std::string("Input coordinates of piece (ex: d3) - "));
 
-        char char1 = in[0];
-        char char2 = in[1];
+            char char1 = in[0];
+            char char2 = in[1];
 
-        // map input to correct coordinates
-        int row = (char2 - '0') - 1;
+            // map input to correct coordinates
+            int row = (char2 - '0') - 1;
 
-        char columnChars[8] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' };
-        int col = -1;
+            char columnChars[8] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' };
+            int col = -1;
 
-        // converts alpha char to index
-        for (int i = 0; i < 8; i++) {
-            if (char1 == columnChars[i])
-                col = i;
-        }
-
-        Piece* piece = getPieceAt(col, row);
-
-        bool valid = true;
-
-        if (!piece) {
-            std::cout << "There is no piece at " << char1 << char2 << std::endl;
-            valid = false;
-        } if (piece && piece->getColor() != turn) {
-            std::cout << "The piece at " << char1 << char2 << " is not your piece." << std::endl;
-            valid = false;
-        }
-
-        if (!valid) {
-            inputLoop(turn);
-            return;
-        }
-
-        bool destinationValid = false;
-
-        int selected[2][2] = { {7 - piece->getY(), piece->getX()}, {7 - piece->getY(), piece->getX()} };
-
-        bool firstIter = true;
-        while (!destinationValid) {
-            printBoard(selected);
-
-            if (!firstIter)
-                std::cout << "Move invalid for piece " << piece->getName() << "." << std::endl;
-            
-            firstIter = false;
-
-            in = getInput(std::string("Input coordinates of destination (ex: d5) - "));
-
-            char1 = in[0];
-            char2 = in[1];
-
-            row = (char2 - '0') - 1;
-            col = -1;
-
+            // converts alpha char to index
             for (int i = 0; i < 8; i++) {
                 if (char1 == columnChars[i])
                     col = i;
             }
 
-            bool taking = false;
+            Piece* piece = getPieceAt(col, row);
 
-            // check if there is a piece at the destination and if it is the user's piece or not
-            Piece* destPiece = getPieceAt(col, row);
-            if (destPiece && destPiece->getColor() != turn)
-                taking = true;
-            else if (destPiece) {
-                continue;
+            bool valid = true;
+
+            if (!piece) {
+                std::cout << "There is no piece at " << char1 << char2 << std::endl;
+                valid = false;
+            } if (piece && piece->getColor() != turn) {
+                std::cout << "The piece at " << char1 << char2 << " is not your piece." << std::endl;
+                valid = false;
             }
 
-            // repeat destination loop if the move is invalid
-            if (piece->move(col, row, taking) != 0)
-                continue;
-
-            enum Type pieceType = static_cast<Type>(piece->getType());
-
-            int x = piece->getX(), y = piece->getY();
-            int dirX = col - x, dirY = row - y;
-
-            bool pieceBetween = false;
-
-            // check if the intended move is impossible because of a piece intercepting the move
-            switch (pieceType) {
-            case ROOK:
-                pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
-                break;
-            case BISHOP:
-                pieceBetween = !diagonalInterceptCheck(x, y, col, row);
-                break;
-            case QUEEN:
-                // check if move is diagonal or straight, same check as bishop and rook respectively
-                if ((dirX != 0 && dirY == 0) || (dirX == 0 && dirY != 0))
-                    pieceBetween = !straightInterceptCheck(x, y, col, row, dirX, dirY);
-                else // check diagonal
-                    pieceBetween = !diagonalInterceptCheck(x, y, col, row);
-                break;
+            if (!valid) {
+                inputLoop(pPlayer);
+                return;
             }
 
-            destinationValid = !pieceBetween;
+            bool destinationValid = false;
 
-            // repeat destination loop if invalid destination
-            if (!destinationValid)
-                continue;
+            int selected[2][2] = { {7 - piece->getY(), piece->getX()}, {7 - piece->getY(), piece->getX()} };
 
-            // select the destination spot
-            selected[1][0] = 7 - row;
-            selected[1][1] = col;
+            bool firstIter = true;
+            while (!destinationValid) {
+                //printBoard(selected, pPlayer);
 
-            printBoard(selected);
+                if (!firstIter)
+                    std::cout << "Move invalid for piece " << convertCharToLongName(piece->getName()) << "." << std::endl;
 
-            // get user input if they want to actually move there or not.
-            bool moveConfirmed = getYesNo("Confirm move? (y/n) - ");
+                firstIter = false;
 
-            if (moveConfirmed) {
-                // move the piece and take the other cause it sucks now
-                piece->setPosition(col, row);
-                if (destPiece)
-                    takePiece(destPiece, turn);
-            }
-            else {
-                // try again cause they couldn't make up their mind
-                inputLoop(turn);
+                in = getInput(std::string("Input coordinates of destination (ex: d5), or 'q' to cancel - "));
+                if (std::tolower(in[0]) == 'q') {
+                    printBoard({}, pPlayer);
+                    inputLoop(pPlayer);
+                    return;
+                }
+
+                char1 = in[0];
+                char2 = in[1];
+
+                row = (char2 - '0') - 1;
+                col = -1;
+
+                for (int i = 0; i < 8; i++) {
+                    if (char1 == columnChars[i])
+                        col = i;
+                }
+
+                bool taking = false;
+
+                // check if there is a piece at the destination and if it is the user's piece or not
+                Piece* destPiece = getPieceAt(col, row);
+                if (destPiece && destPiece->getColor() != turn)
+                    taking = true;
+                else if (destPiece) {
+                    continue;
+                }
+
+                // repeat destination loop if the move is invalid
+                if (piece->move(col, row, taking) != 0)
+                    continue;
+
+                enum Type pieceType = static_cast<Type>(piece->getType());
+
+                int x = piece->getX(), y = piece->getY();
+                int dirX = col - x, dirY = row - y;
+
+                // repeat destination loop if move is intercepted by another piece
+                if (checkMoveIntercepted(piece, col, row))
+                    continue;
+
+                destinationValid = true;
+
+                // check if move leaves king exposed to attack (HOW TF DO I DO THIS AAAAAAAAAA)
+                // I guess calculate all moves for other side? If any of the moves can hit the king, not legal move?
+                // Sounds super performant :)
+
+                // select the destination spot (flipped on y)
+                selected[1][0] = 7 - row;
+                selected[1][1] = col;
+
+                printBoard(selected, pPlayer);
+
+                bool moveConfirmed = getYesNo("Confirm move? (y/n) - ");
+
+                if (moveConfirmed) {
+                    piece->setPosition(col, row);
+                    if (destPiece)
+                        takePiece(destPiece, pPlayer);
+                }
+                else {
+                    // try again cause they couldn't make up their mind
+                    printBoard({}, pPlayer);
+                    inputLoop(pPlayer);
+                }
             }
         }
     }
@@ -571,14 +610,19 @@ int main()
 
     Board board = Board();
     
-    enum Color turn = WHITE;
+    enum Color turn = BLACK;
     bool gameContinue = true;
 
-    while (gameContinue) {
-        board.printBoard();
-        board.inputLoop(turn);
-        // turn = turn == WHITE ? BLACK : WHITE;
-    }
+    Player whitePlayer = Player("White", WHITE);
+    Player blackPlayer = Player("Black", BLACK);
 
+    Player *players[2] = { &whitePlayer, &blackPlayer };
+
+    while (gameContinue) {
+        Player* pPlayer = players[turn];
+        board.printBoard({}, pPlayer);
+        board.inputLoop(pPlayer);
+        turn = turn == WHITE ? BLACK : WHITE;
+    }
     return 0;
 }
