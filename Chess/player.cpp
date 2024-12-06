@@ -34,10 +34,9 @@ bool Player::isBot() const {
     return bot;
 }
 
-void Player::botMove(Board* pBoard) {
+void Player::botMove(std::vector<std::unique_ptr<Piece>>* pBoardPieces) {
     std::vector<std::unique_ptr<Piece>> pieces;
 
-    std::vector<std::unique_ptr<Piece>>* pBoardPieces = pBoard->getPieces();
     for (int i = 0; i < pBoardPieces->size(); i++) {
         if (pBoardPieces->at(i).get()->getColor() == color)
             pieces.push_back(pBoardPieces->at(i));
@@ -47,12 +46,12 @@ void Player::botMove(Board* pBoard) {
 
     std::unique_ptr<Piece> u_pPiece;
 
-    std::vector<int[2]> moves = u_pPiece.get()->calculateMovesForPiece(pBoard);
+    std::vector<xy> moves = u_pPiece.get()->calculateMovesForPiece(pBoardPieces);
 
     // TODO: pick a random move using random index
 
     int move[2] = {};
     
-    if (u_pPiece.get()->move(move[0], move[1], pBoard))
+    if (u_pPiece.get()->move(move[0], move[1], pBoardPieces))
         u_pPiece.get()->setPosition(move[0], move[1]);
 }

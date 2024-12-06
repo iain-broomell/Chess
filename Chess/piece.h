@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <string>
-#include "board.h"
+#include <vector>
 
 const enum Type {
     PAWN,
@@ -18,6 +18,11 @@ const enum Color {
     BLACK
 };
 
+struct xy {
+    int x;
+    int y;
+};
+
 class Piece {
 private:
     char name;
@@ -28,12 +33,12 @@ private:
     bool firstMove = true;
 
     // Checks if the suggested diagonal move is possible (true) or if the move is intercepted by another piece (false).
-    bool diagonalInterceptCheck(int targetX, int targetY, Board* pBoard) const;
+    bool diagonalInterceptCheck(int targetX, int targetY, std::vector<std::unique_ptr<Piece>>* pPieces);
 
     // Checks if the suggested straight move is possible (true) or if the move is intercepted by another piece (false). 
-    bool straightInterceptCheck(int targetX, int targetY, int dirX, int dirY, Board* pBoard) const;
+    bool straightInterceptCheck(int targetX, int targetY, int dirX, int dirY, std::vector<std::unique_ptr<Piece>>* pPieces);
 
-    bool checkMoveIntercepted(int col, int row, Board* pBoard);
+    bool checkMoveIntercepted(int col, int row, std::vector<std::unique_ptr<Piece>>* pPieces);
 
 public:
     Piece(enum Color color, enum Type type, char name, int x, int y);
@@ -45,7 +50,8 @@ public:
     int getType() const;
     void setPosition(int x, int y);
     bool isFirstMove() const;
-    bool kingVulnerable(int destX, int destY, Board* pBoard);
-    int move(int destX, int destY, Board* pBoard);
-    std::vector<int[2]> calculateMovesForPiece(Board* pBoard);
+    bool kingVulnerable(int destX, int destY, std::vector<std::unique_ptr<Piece>>* pPieces);
+    int move(int destX, int destY, std::vector<std::unique_ptr<Piece>>* pPieces);
+    std::vector<xy> calculateMovesForPiece(std::vector<std::unique_ptr<Piece>>* pPieces);
+    static Piece* getPieceAt(int x, int y, std::vector<std::unique_ptr<Piece>>* pPieces);
 };

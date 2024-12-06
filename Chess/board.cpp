@@ -157,22 +157,6 @@ void Board::takePiece(Piece* pPiece, Player* pPlayer) {
     }
 }
 
-// TODO: move to piece class
-Piece* Board::getPieceAt(int x, int y) {
-    Piece* piece = nullptr;
-    // there has to be a better more effecient way to look for the correct piece.
-    // maybe I could do a binary search if the vector size was guarenteed constant
-    // the search would be based on the type of the piece (pawns are always below 16, etc.)
-    // O(n) complexity, not bad but worse than it could be. 
-    for (int i = 0; i < pieces.size(); i++) {
-        Piece* ptr = pieces[i].get();
-        if (ptr->getY() == y && ptr->getX() == x)
-            piece = ptr;
-    }
-
-    return piece;
-}
-
 // switch to a cached board functionality later
 void Board::printBoard(int selected[2][2], Player* pPlayer, Player* pPlayers[2]) {
     clearConsole();
@@ -275,7 +259,8 @@ void Board::inputLoop(Player* pPlayer, Player* pPlayers[2]) {
                 col = i;
         }
 
-        Piece* piece = getPieceAt(col, row);
+        // I have to do inline construction or else I have to make it a static function
+        Piece* piece = Piece::getPieceAt(col, row, &pieces);
 
         bool valid = true;
 
@@ -324,7 +309,7 @@ void Board::inputLoop(Player* pPlayer, Player* pPlayers[2]) {
             bool taking = false;
 
             // check if there is a piece at the destination and if it is the user's piece or not
-            Piece* destPiece = getPieceAt(col, row);
+            Piece* destPiece = Piece::getPieceAt(col, row, &pieces);
             if (destPiece && destPiece->getColor() != turn)
                 taking = true;
             else if (destPiece) {
@@ -332,7 +317,7 @@ void Board::inputLoop(Player* pPlayer, Player* pPlayers[2]) {
             }
 
             // repeat destination loop if the move is invalid
-            if (piece->move(col, row, this) != 0)
+            if (piece->move(col, row, &pieces) != 0)
                 continue;
 
             destinationValid = true;

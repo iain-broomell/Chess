@@ -51,11 +51,11 @@ bool Piece::isFirstMove() const {
 }
 
 // wild boolean logic RAAAAHHHH
-int Piece::move(int destX, int destY, Board* pBoard) {
-    if (checkMoveIntercepted(destX, destY, pBoard) || kingVulnerable(destX, destY, pBoard))
+int Piece::move(int destX, int destY, std::vector<std::unique_ptr<Piece>>* pPieces) {
+    if (checkMoveIntercepted(destX, destY, pPieces) || kingVulnerable(destX, destY, pPieces))
         return -1;
 
-    bool taking = pBoard->getPieceAt(destX, destY);
+    bool taking = getPieceAt(destX, destY, pPieces);
 
     switch (type) {
     case PAWN:
@@ -103,13 +103,13 @@ int Piece::move(int destX, int destY, Board* pBoard) {
     return -1;
 }
 
-bool Piece::diagonalInterceptCheck(int targetX, int targetY, Board* pBoard) const {
+bool Piece::diagonalInterceptCheck(int targetX, int targetY, std::vector<std::unique_ptr<Piece>>* pPieces) {
     int checkTargetX = targetX - x, checkTargetY = targetY - y;
     int stepX = checkTargetX > 0 ? 1 : -1, stepY = checkTargetY > 0 ? 1 : -1;
     // weird ass for loop
     for (int modX = stepX, modY = stepY; modX != checkTargetX;) {
         std::cout << "Checking if there is a piece at " << x + modX << " " << y + modY << std::endl;
-        if (pBoard->getPieceAt(x + modX, y + modY))
+        if (getPieceAt(x + modX, y + modY, pPieces))
             return false;
         std::cout << "No piece there." << std::endl;
         modX += stepX, modY += stepY;
@@ -118,11 +118,11 @@ bool Piece::diagonalInterceptCheck(int targetX, int targetY, Board* pBoard) cons
 }
 
 // Checks if the suggested straight move is possible (true) or if the move is intercepted by another piece (false). 
-bool Piece::straightInterceptCheck(int targetX, int targetY, int dirX, int dirY, Board* pBoard) const {
+bool Piece::straightInterceptCheck(int targetX, int targetY, int dirX, int dirY, std::vector<std::unique_ptr<Piece>>* pPieces) {
     if (dirX != 0) {
         for (int checkX = x + (dirX > 0 ? 1 : -1); checkX != targetX; checkX += (dirX > 0 ? 1 : -1)) {
             std::cout << "Checking if there is a piece at " << targetX << " " << targetY << std::endl;
-            if (pBoard->getPieceAt(checkX, targetY))
+            if (getPieceAt(checkX, targetY, pPieces))
                 return false;
             std::cout << "No piece there." << std::endl;
         }
@@ -130,7 +130,7 @@ bool Piece::straightInterceptCheck(int targetX, int targetY, int dirX, int dirY,
     else if (dirY != 0) {
         for (int checkY = y + (dirY > 0 ? 1 : -1); checkY != targetY; checkY += (dirY > 0 ? 1 : -1)) {
             std::cout << "Checking if there is a piece at " << targetX << " " << checkY << std::endl;
-            if (pBoard->getPieceAt(targetX, checkY))
+            if (getPieceAt(targetX, checkY, pPieces))
                 return false;
             std::cout << "No piece there." << std::endl;
         }
@@ -138,7 +138,7 @@ bool Piece::straightInterceptCheck(int targetX, int targetY, int dirX, int dirY,
     return true;
 }
 
-bool Piece::checkMoveIntercepted(int col, int row, Board* pBoard) {
+bool Piece::checkMoveIntercepted(int col, int row, std::vector<std::unique_ptr<Piece>>* pPieces) {
     int dirX = col - x, dirY = row - y;
 
     bool pieceBetween = false;
@@ -146,17 +146,17 @@ bool Piece::checkMoveIntercepted(int col, int row, Board* pBoard) {
     // check if the intended move is impossible because of a piece intercepting the move
     switch (type) {
     case ROOK:
-        pieceBetween = !straightInterceptCheck(col, row, dirX, dirY, pBoard);
+        pieceBetween = !straightInterceptCheck(col, row, dirX, dirY, pPieces);
         break;
     case BISHOP:
-        pieceBetween = !diagonalInterceptCheck(col, row, pBoard);
+        pieceBetween = !diagonalInterceptCheck(col, row, pPieces);
         break;
     case QUEEN:
         // check if move is diagonal or straight, same check as bishop and rook respectively
         if ((dirX != 0 && dirY == 0) || (dirX == 0 && dirY != 0))
-            pieceBetween = !straightInterceptCheck(col, row, dirX, dirY, pBoard);
+            pieceBetween = !straightInterceptCheck(col, row, dirX, dirY, pPieces);
         else // check diagonal
-            pieceBetween = !diagonalInterceptCheck(col, row, pBoard);
+            pieceBetween = !diagonalInterceptCheck(col, row, pPieces);
         break;
     }
 
@@ -165,8 +165,8 @@ bool Piece::checkMoveIntercepted(int col, int row, Board* pBoard) {
 
 // Does what it says.
 // Returns a vector of all available destinations in {x, y} format.
-std::vector<int[2]> Piece::calculateMovesForPiece(Board* pBoard) {
-    std::vector<int[2]> moves;
+std::vector<xy> calculateMovesForPiece(std::vector<std::unique_ptr<Piece>>* pPieces) {
+    std::vector<xy> moves;
 
     /*
     There is an efficient way and an inefficient way to do this
@@ -179,8 +179,8 @@ std::vector<int[2]> Piece::calculateMovesForPiece(Board* pBoard) {
     // woah so simple and so horrible at the same time. O(n^2) :(
     for (int x = 0; x < 8; x++) {
         for (int y = 0; y < 8; y++) {
-            bool taking = (pBoard->getPieceAt(x, y));
-            if (move(x, y, pBoard) == 0)
+            bool taking = (Piece::getPieceAt(x, y, pPieces));
+            if (move(x, y, pPieces) == 0)
                 moves.emplace_back(x, y);
         }
     }
@@ -190,11 +190,9 @@ std::vector<int[2]> Piece::calculateMovesForPiece(Board* pBoard) {
     return moves;
 }
 
-bool Piece::kingVulnerable(int destX, int destY, Board* pBoard) {
+bool Piece::kingVulnerable(int destX, int destY, std::vector<std::unique_ptr<Piece>>* pPieces) {
     int presX = x, presY = y;
     setPosition(destX, destY);
-
-    std::vector<std::unique_ptr<Piece>>* pPieces = pBoard->getPieces();
     
     Piece* pKing;
 
@@ -202,13 +200,13 @@ bool Piece::kingVulnerable(int destX, int destY, Board* pBoard) {
     for (int i = 0; i < pPieces->size(); i++) {
         Piece* pPiece = pPieces->at(i).get();
         if (pPiece->getType() == KING && pPiece->getColor() == color)
-            pKing = pBoard->getPieceAt(pPiece->getX(), pPiece->getY());
+            pKing = getPieceAt(pPiece->getX(), pPiece->getY(), pPieces);
     }
 
     for (int i = 0; i < pPieces->size(); i++) {
         if (pPieces->at(i)->getColor() != color) {
             Piece* pPiece = pPieces->at(i).get();
-            if (pPiece->move(pKing->getX(), pKing->getY(), pBoard) == 0)
+            if (pPiece->move(pKing->getX(), pKing->getY(), pPieces) == 0)
                 return false;
         }
     }
@@ -217,4 +215,19 @@ bool Piece::kingVulnerable(int destX, int destY, Board* pBoard) {
     setPosition(presX, presY);
 
     return true;
+}
+
+Piece* Piece::getPieceAt(int x, int y, std::vector<std::unique_ptr<Piece>>* pPieces) {
+    Piece* piece = nullptr;
+    // there has to be a better more effecient way to look for the correct piece.
+    // maybe I could do a binary search if the vector size was guarenteed constant
+    // the search would be based on the type of the piece (pawns are always below 16, etc.)
+    // O(n) complexity, not bad but worse than it could be. 
+    for (int i = 0; i < pPieces->size(); i++) {
+        Piece* ptr = pPieces->at(i).get();
+        if (ptr->getY() == y && ptr->getX() == x)
+            piece = ptr;
+    }
+
+    return piece;
 }

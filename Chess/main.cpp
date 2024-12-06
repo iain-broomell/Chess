@@ -1,4 +1,5 @@
 #include "piece.h"
+#include "board.h"
 
 const std::string VERSION = "v0.1";
 
@@ -35,7 +36,7 @@ int main()
         if (!pPlayer->isBot())
             board.inputLoop(pPlayer, players);
         else
-            pPlayer->botMove(&board);
+            pPlayer->botMove(board.getPieces());
 
         turn = turn == WHITE ? BLACK : WHITE;
     }

@@ -20,7 +20,6 @@ private:
 	void takePiece(Piece* pPiece, Player* pPlayer);
 public:
 	Board();
-	Piece* getPieceAt(int x, int y);
 	void printBoard(int selected[2][2], Player* pPlayer, Player* pPlayers[2]);
 	// A mess of input checks to make sure you're doing the right thing (it sucks). 
 	void inputLoop(Player* pPlayer, Player* pPlayers[2]);

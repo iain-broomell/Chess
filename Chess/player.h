@@ -20,5 +20,5 @@ public:
 	void printCapturedPieces();
 	std::vector<std::unique_ptr<Piece>> getCapturedPieces();
 	bool isBot() const;
-	void botMove(Board* pBoard);
+	void botMove(std::vector<std::unique_ptr<Piece>>* pBoardPieces);
 };
